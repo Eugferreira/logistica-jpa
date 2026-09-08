@@ -22,6 +22,12 @@ interface ExcelImportModalProps {
   onImportComplete: (newItems: ItemPedido[], summary: ImportSummary) => void;
 }
 
+// Data de hoje (YYYY-MM-DD, fuso local) — padrão do filtro "a partir de"
+const hojeISO = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   open,
   onOpenChange,
@@ -32,6 +38,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
+  // Só importa linhas com Data.Est.Carreg. >= esta data (vazio = importa todas)
+  const [dataMinima, setDataMinima] = useState<string>(hojeISO());
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -136,6 +144,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       let countExistentes = 0;
       let countForaEscopo = 0;
       let countDuplicadosArquivo = 0;
+      let countDataAnterior = 0;
       const erros: string[] = [];
 
       for (let index = 0; index < rawRows.length; index++) {
@@ -161,6 +170,13 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
         if (isIgnoredProduct) {
           countForaEscopo++;
+          continue;
+        }
+
+        // 1b. Filtro por data de carregamento (ex.: só cargas de hoje em diante)
+        const dataCarregLinha = colDataCarreg ? parseExcelDate(row[colDataCarreg]) : null;
+        if (dataMinima && dataCarregLinha && dataCarregLinha < dataMinima) {
+          countDataAnterior++;
           continue;
         }
 
@@ -218,6 +234,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         ignoradosExistentes: countExistentes,
         ignoradosForaEscopo: countForaEscopo,
         ignoradosDuplicadosArquivo: countDuplicadosArquivo,
+        ignoradosDataAnterior: countDataAnterior,
         erros,
       };
 
@@ -261,6 +278,26 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             />
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <label htmlFor="data-minima" className="text-slate-600 dark:text-slate-300 font-medium">
+              Importar carregamentos a partir de:
+            </label>
+            <input
+              id="data-minima"
+              type="date"
+              value={dataMinima}
+              onChange={(e) => setDataMinima(e.target.value)}
+              className="border rounded-md px-2 py-1 bg-white dark:bg-slate-800 dark:border-slate-700 text-slate-800 dark:text-slate-100"
+            />
+            <button
+              type="button"
+              onClick={() => setDataMinima('')}
+              className="text-slate-500 hover:text-emerald-500 underline"
+            >
+              importar todas as datas
+            </button>
+          </div>
+
           {summary && (
             <div className="p-4 bg-slate-900 text-slate-100 rounded-xl space-y-3 text-xs border border-slate-800">
               <p className="font-bold text-sm text-emerald-400 flex items-center gap-1.5">
@@ -290,6 +327,13 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                   </span>
                 </div>
               </div>
+
+              {summary.ignoradosDataAnterior > 0 && (
+                <p className="text-sky-300 text-[11px] flex items-center gap-1">
+                  <Info className="h-3.5 w-3.5" />
+                  {summary.ignoradosDataAnterior} linhas ignoradas por carregamento anterior à data mínima.
+                </p>
+              )}
 
               {summary.ignoradosDuplicadosArquivo > 0 && (
                 <p className="text-amber-300 text-[11px] flex items-center gap-1">

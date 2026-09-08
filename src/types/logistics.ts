@@ -67,6 +67,7 @@ export interface ImportSummary {
   ignoradosExistentes: number;
   ignoradosForaEscopo: number;
   ignoradosDuplicadosArquivo: number;
+  ignoradosDataAnterior: number;
   erros: string[];
 }
 
