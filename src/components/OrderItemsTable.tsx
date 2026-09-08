@@ -488,10 +488,10 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
                     </TableCell>
 
                     {/* 4. Vendedor */}
-                    <TableCell className="truncate max-w-[130px]">{item.vendedor || '-'}</TableCell>
+                    <TableCell className=" whitespace-nowrap">{item.vendedor || '-'}</TableCell>
 
                     {/* 5. Produto */}
-                    <TableCell className="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[180px]">
+                    <TableCell className="font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">
                       {item.produto || '-'}
                     </TableCell>
 
@@ -501,18 +501,18 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
                     </TableCell>
 
                     {/* 7. Cliente */}
-                    <TableCell className="truncate max-w-[190px] font-medium" title={item.cliente || ''}>
+                    <TableCell className=" whitespace-nowrap font-medium" title={item.cliente || ''}>
                       {item.cliente || '-'}
                     </TableCell>
 
                     {/* 8. Cidade */}
-                    <TableCell className="truncate max-w-[130px]">{item.cidade || '-'}</TableCell>
+                    <TableCell className=" whitespace-nowrap">{item.cidade || '-'}</TableCell>
 
                     {/* 9. UF */}
                     <TableCell className="font-bold">{item.uf || '-'}</TableCell>
 
                     {/* 10. Veículo */}
-                    <TableCell className="truncate max-w-[130px]">{item.veiculo || '-'}</TableCell>
+                    <TableCell className=" whitespace-nowrap">{item.veiculo || '-'}</TableCell>
 
                     {/* 11. Data.Est.Carreg. */}
                     <TableCell className="font-mono">{formatDateBR(item.data_est_carreg)}</TableCell>
