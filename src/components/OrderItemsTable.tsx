@@ -63,6 +63,7 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
   // Estado dos filtros
   const [filters, setFilters] = useState<ItemFilters>({
     busca: '',
+    codPedido: '',
     produto: 'ALL',
     cidade: 'ALL',
     uf: 'ALL',
@@ -118,6 +119,9 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
         const matchCodPedido = item.cod_pedido?.toString().includes(q);
         if (!matchCliente && !matchProduto && !matchCodPedido) return false;
       }
+
+      // Filtro Cód.Pedido (exato)
+      if (filters.codPedido.trim() && String(item.cod_pedido ?? '') !== filters.codPedido.trim()) return false;
 
       // Filtro Produto
       if (filters.produto !== 'ALL' && item.produto !== filters.produto) return false;
@@ -235,6 +239,7 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
   const clearFilters = () => {
     setFilters({
       busca: '',
+      codPedido: '',
       produto: 'ALL',
       cidade: 'ALL',
       uf: 'ALL',
@@ -381,7 +386,7 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
             className="text-xs gap-1.5 h-9"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" /> Opção avançada de filtro
-            {(filters.uf !== 'ALL' || filters.status !== 'ALL' || filters.vendedor !== 'ALL' || filters.transportador !== 'ALL') && (
+            {(filters.codPedido.trim() !== '' || filters.uf !== 'ALL' || filters.status !== 'ALL' || filters.vendedor !== 'ALL' || filters.transportador !== 'ALL') && (
               <span className="ml-1 rounded-full bg-emerald-600 text-white px-1.5 text-[10px]">ativo</span>
             )}
           </Button>
@@ -401,6 +406,16 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
         {showAdvanced && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
             <span className="text-[11px] uppercase tracking-wide text-slate-500 mr-1">Avançado:</span>
+
+            <Input
+              type="number"
+              inputMode="numeric"
+              placeholder="Cód.Pedido"
+              value={filters.codPedido}
+              onChange={(e) => setFilters((f) => ({ ...f, codPedido: e.target.value }))}
+              className="w-[130px] h-9 text-xs"
+              title="Filtra pelo número exato do pedido"
+            />
 
             <Select value={filters.uf} onValueChange={(val) => setFilters((f) => ({ ...f, uf: val }))}>
               <SelectTrigger className="w-[110px] text-xs"><SelectValue placeholder="UF" /></SelectTrigger>

@@ -73,6 +73,7 @@ export interface ImportSummary {
 
 export interface ItemFilters {
   busca: string;
+  codPedido: string;
   produto: string;
   cidade: string;
   uf: string;
