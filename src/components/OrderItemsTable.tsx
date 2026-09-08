@@ -43,6 +43,14 @@ const STATUS_OPTIONS: ItemStatus[] = [
   'Cancelado',
 ];
 
+// Data de hoje no formato YYYY-MM-DD (fuso local), usada como padrão do filtro de carregamento
+const hojeISO = (): string => {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+};
+
 export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
   items,
   currentUser,
@@ -56,7 +64,7 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
     status: 'ALL',
     vendedor: 'ALL',
     transportador: 'ALL',
-    dataEstCarregInicio: '',
+    dataEstCarregInicio: hojeISO(),
     dataEstCarregFim: '',
   });
 
@@ -169,7 +177,7 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
       status: 'ALL',
       vendedor: 'ALL',
       transportador: 'ALL',
-      dataEstCarregInicio: '',
+      dataEstCarregInicio: hojeISO(),
       dataEstCarregFim: '',
     });
   };
@@ -391,7 +399,7 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
       </div>
 
       {/* TABELA PRINCIPAL DE ITENS */}
-      <div className="border rounded-xl bg-white dark:bg-slate-900 shadow-sm overflow-x-auto">
+      <div className="border rounded-xl bg-white dark:bg-slate-900 shadow-sm overflow-auto max-h-[calc(100vh-300px)] min-h-[300px]">
         <Table className="text-xs min-w-[1700px]">
           <TableHeader className="bg-slate-100 dark:bg-slate-800/80 sticky top-0 z-10">
             <TableRow>
