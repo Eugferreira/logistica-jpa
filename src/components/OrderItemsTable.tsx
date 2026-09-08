@@ -24,6 +24,10 @@ import {
   Calendar,
   DollarSign,
   Package,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { ItemPedido, ItemStatus, ItemFilters, UserProfile } from '@/types/logistics';
 import { formatCurrency, formatDateBR, formatDateTimeBR, formatWeight } from '@/utils/formatters';
@@ -59,6 +63,8 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
   // Estado dos filtros
   const [filters, setFilters] = useState<ItemFilters>({
     busca: '',
+    produto: 'ALL',
+    cidade: 'ALL',
     uf: 'ALL',
     frete: 'ALL',
     status: 'ALL',
@@ -68,10 +74,29 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
     dataEstCarregFim: '',
   });
 
+  // Painel de filtros avançados (recolhido por padrão)
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Ordenação por coluna (clique no cabeçalho: A→Z, clique de novo: Z→A)
+  const [sortKey, setSortKey] = useState<keyof ItemPedido | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const handleSort = (key: keyof ItemPedido) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
   // Linhas em edição de inputs numéricos/textuais
   const [editingValues, setEditingValues] = useState<Record<string, Partial<ItemPedido>>>({});
 
   // Opções únicas para dropdowns de filtros
+  const uniqueProdutos = useMemo(
+    () => Array.from(new Set(items.map((i) => i.produto).filter(Boolean))).sort((a, b) => a!.localeCompare(b!, 'pt-BR')),
+    [items]
+  );
+  const uniqueCidades = useMemo(
+    () => Array.from(new Set(items.map((i) => i.cidade).filter(Boolean))).sort((a, b) => a!.localeCompare(b!, 'pt-BR')),
+    [items]
+  );
   const uniqueUFs = useMemo(() => Array.from(new Set(items.map((i) => i.uf).filter(Boolean))), [items]);
   const uniqueVendedores = useMemo(
     () => Array.from(new Set(items.map((i) => i.vendedor).filter(Boolean))),
@@ -93,6 +118,12 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
         const matchCodPedido = item.cod_pedido?.toString().includes(q);
         if (!matchCliente && !matchProduto && !matchCodPedido) return false;
       }
+
+      // Filtro Produto
+      if (filters.produto !== 'ALL' && item.produto !== filters.produto) return false;
+
+      // Filtro Cidade
+      if (filters.cidade !== 'ALL' && item.cidade !== filters.cidade) return false;
 
       // Filtro UF
       if (filters.uf !== 'ALL' && item.uf !== filters.uf) return false;
@@ -121,6 +152,38 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
       return true;
     });
   }, [items, filters]);
+
+  // Aplica a ordenação escolhida no cabeçalho (nulos sempre no fim)
+  const sortedItems = useMemo(() => {
+    if (!sortKey) return filteredItems;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...filteredItems].sort((a, b) => {
+      const va = a[sortKey]; const vb = b[sortKey];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'pt-BR', { numeric: true, sensitivity: 'base' }) * dir;
+    });
+  }, [filteredItems, sortKey, sortDir]);
+
+  // Cabeçalho clicável com indicador de ordenação
+  const renderSortableHead = (label: string, colKey: keyof ItemPedido, className = '') => (
+    <TableHead
+      className={`${className} cursor-pointer select-none hover:bg-slate-200/70 dark:hover:bg-slate-700/60`}
+      onClick={() => handleSort(colKey)}
+      title="Clique para ordenar (A→Z / Z→A)"
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortKey === colKey ? (
+          sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </TableHead>
+  );
 
   // Estatísticas calculadas
   const stats = useMemo(() => {
@@ -172,6 +235,8 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
   const clearFilters = () => {
     setFilters({
       busca: '',
+      produto: 'ALL',
+      cidade: 'ALL',
       uf: 'ALL',
       frete: 'ALL',
       status: 'ALL',
@@ -280,32 +345,18 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
             />
           </div>
 
-          {/* Dropdown UF */}
-          <Select
-            value={filters.uf}
-            onValueChange={(val) => setFilters((f) => ({ ...f, uf: val }))}
-          >
-            <SelectTrigger className="w-[110px] text-xs">
-              <SelectValue placeholder="UF" />
-            </SelectTrigger>
+          {/* Produto */}
+          <Select value={filters.produto} onValueChange={(val) => setFilters((f) => ({ ...f, produto: val }))}>
+            <SelectTrigger className="w-[190px] text-xs"><SelectValue placeholder="Produto" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">Todas UFs</SelectItem>
-              {uniqueUFs.map((uf) => (
-                <SelectItem key={uf} value={uf!}>
-                  {uf}
-                </SelectItem>
-              ))}
+              <SelectItem value="ALL">Todos Produtos</SelectItem>
+              {uniqueProdutos.map((p) => (<SelectItem key={p} value={p!}>{p}</SelectItem>))}
             </SelectContent>
           </Select>
 
-          {/* Dropdown Frete */}
-          <Select
-            value={filters.frete}
-            onValueChange={(val) => setFilters((f) => ({ ...f, frete: val }))}
-          >
-            <SelectTrigger className="w-[110px] text-xs">
-              <SelectValue placeholder="Frete" />
-            </SelectTrigger>
+          {/* Frete CIF/FOB */}
+          <Select value={filters.frete} onValueChange={(val) => setFilters((f) => ({ ...f, frete: val }))}>
+            <SelectTrigger className="w-[110px] text-xs"><SelectValue placeholder="Frete" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">CIF / FOB</SelectItem>
               <SelectItem value="CIF">CIF</SelectItem>
@@ -313,59 +364,27 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
             </SelectContent>
           </Select>
 
-          {/* Dropdown Status */}
-          <Select
-            value={filters.status}
-            onValueChange={(val) => setFilters((f) => ({ ...f, status: val }))}
-          >
-            <SelectTrigger className="w-[140px] text-xs">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
+          {/* Cidade */}
+          <Select value={filters.cidade} onValueChange={(val) => setFilters((f) => ({ ...f, cidade: val }))}>
+            <SelectTrigger className="w-[170px] text-xs"><SelectValue placeholder="Cidade" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">Todos Status</SelectItem>
-              {STATUS_OPTIONS.map((st) => (
-                <SelectItem key={st} value={st}>
-                  {st}
-                </SelectItem>
-              ))}
+              <SelectItem value="ALL">Todas Cidades</SelectItem>
+              {uniqueCidades.map((c) => (<SelectItem key={c} value={c!}>{c}</SelectItem>))}
             </SelectContent>
           </Select>
 
-          {/* Vendedor */}
-          <Select
-            value={filters.vendedor}
-            onValueChange={(val) => setFilters((f) => ({ ...f, vendedor: val }))}
+          {/* Opção avançada de filtro */}
+          <Button
+            variant={showAdvanced ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="text-xs gap-1.5 h-9"
           >
-            <SelectTrigger className="w-[140px] text-xs">
-              <SelectValue placeholder="Vendedor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Todos Vendedores</SelectItem>
-              {uniqueVendedores.map((v) => (
-                <SelectItem key={v} value={v!}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Transportador */}
-          <Select
-            value={filters.transportador}
-            onValueChange={(val) => setFilters((f) => ({ ...f, transportador: val }))}
-          >
-            <SelectTrigger className="w-[150px] text-xs">
-              <SelectValue placeholder="Transportador" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Todos Transp.</SelectItem>
-              {uniqueTransportadores.map((t) => (
-                <SelectItem key={t} value={t!}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <SlidersHorizontal className="h-3.5 w-3.5" /> Opção avançada de filtro
+            {(filters.uf !== 'ALL' || filters.status !== 'ALL' || filters.vendedor !== 'ALL' || filters.transportador !== 'ALL') && (
+              <span className="ml-1 rounded-full bg-emerald-600 text-white px-1.5 text-[10px]">ativo</span>
+            )}
+          </Button>
 
           {/* Limpar Filtros */}
           <Button
@@ -377,6 +396,45 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
             <X className="h-3.5 w-3.5" /> Limpar
           </Button>
         </div>
+
+        {/* Filtros avançados (UF, Status, Vendedor, Transportador) */}
+        {showAdvanced && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-[11px] uppercase tracking-wide text-slate-500 mr-1">Avançado:</span>
+
+            <Select value={filters.uf} onValueChange={(val) => setFilters((f) => ({ ...f, uf: val }))}>
+              <SelectTrigger className="w-[110px] text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todas UFs</SelectItem>
+                {uniqueUFs.map((uf) => (<SelectItem key={uf} value={uf!}>{uf}</SelectItem>))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filters.status} onValueChange={(val) => setFilters((f) => ({ ...f, status: val }))}>
+              <SelectTrigger className="w-[150px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos Status</SelectItem>
+                {STATUS_OPTIONS.map((st) => (<SelectItem key={st} value={st}>{st}</SelectItem>))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filters.vendedor} onValueChange={(val) => setFilters((f) => ({ ...f, vendedor: val }))}>
+              <SelectTrigger className="w-[170px] text-xs"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos Vendedores</SelectItem>
+                {uniqueVendedores.map((v) => (<SelectItem key={v} value={v!}>{v}</SelectItem>))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filters.transportador} onValueChange={(val) => setFilters((f) => ({ ...f, transportador: val }))}>
+              <SelectTrigger className="w-[170px] text-xs"><SelectValue placeholder="Transportador" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos Transp.</SelectItem>
+                {uniqueTransportadores.map((t) => (<SelectItem key={t} value={t!}>{t}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Filtro por Intervalo de Data de Carregamento */}
         <div className="flex items-center gap-2 text-xs text-slate-600 pt-1 border-t border-slate-100 dark:border-slate-800">
@@ -404,54 +462,42 @@ export const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
           <TableHeader className="bg-slate-100 dark:bg-slate-800/80 sticky top-0 z-10">
             <TableRow>
               {/* Ordem exata de colunas conforme especificação */}
-              <TableHead className="w-24">1. Data Venda</TableHead>
-              <TableHead className="w-16">2. Frete</TableHead>
-              <TableHead className="w-24">3. Cód.Pedido</TableHead>
-              <TableHead className="w-32">4. Vendedor</TableHead>
-              <TableHead className="w-44">5. Produto</TableHead>
-              <TableHead className="w-24 text-right">6. Peso(kg)</TableHead>
-              <TableHead className="w-48">7. Cliente</TableHead>
-              <TableHead className="w-32">8. Cidade</TableHead>
-              <TableHead className="w-12">9. UF</TableHead>
-              <TableHead className="w-32">10. Veículo</TableHead>
-              <TableHead className="w-28">11. Data.Est.Carreg.</TableHead>
+              {renderSortableHead("1. Data Venda", "data_venda", "w-24")}
+              {renderSortableHead("2. Frete", "frete", "w-16")}
+              {renderSortableHead("3. Cód.Pedido", "cod_pedido", "w-24")}
+              {renderSortableHead("4. Vendedor", "vendedor", "w-32")}
+              {renderSortableHead("5. Produto", "produto", "w-44")}
+              {renderSortableHead("6. Peso(kg)", "peso_kg", "w-24 text-right")}
+              {renderSortableHead("7. Cliente", "cliente", "w-48")}
+              {renderSortableHead("8. Cidade", "cidade", "w-32")}
+              {renderSortableHead("9. UF", "uf", "w-12")}
+              {renderSortableHead("10. Veículo", "veiculo", "w-32")}
+              {renderSortableHead("11. Data.Est.Carreg.", "data_est_carreg", "w-28")}
 
               {/* Colunas Manuais (12 a 16 + 19) */}
-              <TableHead className="w-32 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300">
-                12. Sugestão Frete
-              </TableHead>
-              <TableHead className="w-36 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300">
-                13. Status
-              </TableHead>
-              <TableHead className="w-40 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300">
-                14. Transportador
-              </TableHead>
-              <TableHead className="w-36 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300">
-                15. Motorista
-              </TableHead>
-              <TableHead className="w-32 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300">
-                16. Frete Combinado
-              </TableHead>
+              {renderSortableHead("12. Sugestão Frete", "sugestao_frete", "w-32 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300")}
+              {renderSortableHead("13. Status", "status", "w-36 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300")}
+              {renderSortableHead("14. Transportador", "transportador", "w-40 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300")}
+              {renderSortableHead("15. Motorista", "motorista", "w-36 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300")}
+              {renderSortableHead("16. Frete Combinado", "frete_combinado", "w-32 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300")}
 
-              <TableHead className="w-36">17. Tipo.Operação</TableHead>
-              <TableHead className="w-28 text-right">18. Preço</TableHead>
-              <TableHead className="w-44 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300">
-                19. OBS
-              </TableHead>
+              {renderSortableHead("17. Tipo.Operação", "tipo_operacao", "w-36")}
+              {renderSortableHead("18. Preço", "preco", "w-28 text-right")}
+              {renderSortableHead("19. OBS", "obs", "w-44 bg-emerald-100/70 text-emerald-950 font-bold dark:bg-emerald-950/80 dark:text-emerald-300")}
 
               <TableHead className="w-24 text-center">Info Auditoria</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {filteredItems.length === 0 ? (
+            {sortedItems.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={20} className="h-32 text-center text-slate-500">
                   Nenhum item de pedido encontrado com os filtros selecionados.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredItems.map((item) => {
+              sortedItems.map((item) => {
                 // Destaque para frete sem transportador em amarelo claro
                 const isFretePendente = !item.transportador;
                 const draft = editingValues[item.id] || {};
